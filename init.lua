@@ -99,7 +99,7 @@ do
   vim.g.maplocalleader = ' '
 
   -- Set to true if you have a Nerd Font installed and selected in the terminal
-  vim.g.have_nerd_font = false
+  vim.g.have_nerd_font = true
 
   -- [[ Setting options ]]
   --  See `:help vim.o`
@@ -122,7 +122,7 @@ do
   --  Schedule the setting after `UiEnter` because it can increase startup-time.
   --  Remove this option if you want your OS clipboard to remain independent.
   --  See `:help 'clipboard'`
-  vim.schedule(function() vim.o.clipboard = 'unnamedplus' end)
+  -- vim.schedule(function() vim.o.clipboard = 'unnamedplus' end)
 
   -- Enable break indent
   vim.o.breakindent = true
@@ -171,6 +171,9 @@ do
   -- instead raise a dialog asking if you wish to save the current file(s)
   -- See `:help 'confirm'`
   vim.o.confirm = true
+
+  -- wrap nicely rather than yeeting letters
+  vim.o.linebreak = true
 end
 
 -- ============================================================
@@ -184,6 +187,44 @@ do
   -- Clear highlights on search when pressing <Esc> in normal mode
   --  See `:help hlsearch`
   vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
+
+  -- Save with ctrl s
+  vim.keymap.set({ 'n', 'i' }, '<C-s>', '<Esc><cmd>update<CR>')
+
+  -- System clipboard handle
+  vim.keymap.set({ 'n', 'v' }, 'gp', '"+p')
+  vim.keymap.set({ 'n', 'v' }, 'gP', '"+P')
+  vim.keymap.set({ 'n', 'v' }, 'gy', '"+y')
+
+  -- Better 'gf' to handle ZLS file:// links and escape floating windows
+  vim.keymap.set('n', 'gf', function()
+    local cfile = vim.fn.expand '<cfile>'
+
+    if cfile:match '^file://' then
+      local path = cfile:gsub('^file://', '')
+      local line = path:match '#L(%d+)$'
+      path = path:gsub('#.*$', '') -- Strip the line number
+
+      -- Check if we are currently inside a floating window
+      local win = vim.api.nvim_get_current_win()
+      if vim.api.nvim_win_get_config(win).relative ~= '' then
+        -- We are in a float. Close it so we return to the main window.
+        vim.api.nvim_win_close(win, true)
+      end
+
+      -- Now open the file in the main window
+      vim.cmd('edit ' .. vim.fn.fnameescape(path))
+
+      -- Jump to the line if it exists
+      if line then
+        vim.cmd(tostring(line))
+        vim.cmd 'normal! zz' -- Center the screen
+      end
+    else
+      -- Fallback to standard gf behavior
+      vim.cmd 'normal! gf'
+    end
+  end, { desc = 'Go to file (handles file:// URLs and escapes floats)' })
 
   -- Diagnostic Config & Keymaps
   --  See `:help vim.diagnostic.Opts`
@@ -250,6 +291,26 @@ do
     desc = 'Highlight when yanking (copying) text',
     group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
     callback = function() vim.hl.on_yank() end,
+  })
+
+  -- Build & run zig project directly from neovim
+  vim.api.nvim_create_autocmd('FileType', {
+    pattern = 'zig',
+    callback = function(opts)
+      -- Look for build.zig upwards from the current file's directory
+      local build_file = vim.fs.find('build.zig', {
+        upward = true,
+        path = vim.fs.dirname(vim.api.nvim_buf_get_name(opts.buf)),
+      })
+
+      -- If build.zig is found, set the keymap for this buffer only
+      if #build_file > 0 then
+        vim.keymap.set('n', '<leader>z', ':!zig build run<CR>', {
+          buffer = opts.buf,
+          desc = 'Build and run zig project',
+        })
+      end
+    end,
   })
 end
 
@@ -382,18 +443,12 @@ do
   -- change the command under that to load whatever the name of that colorscheme is.
   --
   -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-  vim.pack.add { gh 'folke/tokyonight.nvim' }
-  ---@diagnostic disable-next-line: missing-fields
-  require('tokyonight').setup {
-    styles = {
-      comments = { italic = false }, -- Disable italics in comments
-    },
-  }
-
-  -- Load the colorscheme here.
-  -- Like many other themes, this one has different styles, and you could load
-  -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-  vim.cmd.colorscheme 'tokyonight-night'
+  vim.pack.add { gh 'sainnhe/everforest' }
+  vim.g.everforest_background = 'hard'
+  vim.g.everforest_enable_italic = 1
+  vim.cmd.colorscheme 'everforest'
+  -- vim.api.nvim_set_hl(0, 'DiagnosticVirtualTextError', { fg = '#e67e80', bg = 'NONE', italic = true })
+  -- vim.api.nvim_set_hl(0, 'DiagnosticVirtualTextWarn', { fg = '#dbbc7f', bg = 'NONE', italic = true })
 
   -- Highlight todo, notes, etc in comments
   vim.pack.add { gh 'folke/todo-comments.nvim' }
@@ -692,7 +747,13 @@ do
   --  See `:help lsp-config` for information about keys and how to configure
   ---@type table<string, vim.lsp.Config>
   local servers = {
-    -- clangd = {},
+    clangd = {},
+    veridian = {
+      cmd = { 'veridian' },
+      filetypes = { 'verilog', 'systemverilog' },
+      root_markers = { 'veridian.yml', '.git' },
+    },
+    zls = {},
     -- gopls = {},
     -- pyright = {},
     -- rust_analyzer = {},
@@ -747,22 +808,23 @@ do
     gh 'WhoIsSethDaniel/mason-tool-installer.nvim',
   }
 
-  -- Automatically install LSPs and related tools to stdpath for Neovim
-  require('mason').setup {}
-
-  -- Ensure the servers and tools above are installed
+  -- no mason
+  -- -- Automatically install LSPs and related tools to stdpath for Neovim
+  -- require('mason').setup {}
   --
-  -- To check the current status of installed tools and/or manually install
-  -- other tools, you can run
-  --    :Mason
+  -- -- Ensure the servers and tools above are installed
+  -- --
+  -- -- To check the current status of installed tools and/or manually install
+  -- -- other tools, you can run
+  -- --    :Mason
+  -- --
+  -- -- You can press `g?` for help in this menu.
+  -- local ensure_installed = vim.tbl_keys(servers or {})
+  -- vim.list_extend(ensure_installed, {
+  --   -- You can add other tools here that you want Mason to install
+  -- })
   --
-  -- You can press `g?` for help in this menu.
-  local ensure_installed = vim.tbl_keys(servers or {})
-  vim.list_extend(ensure_installed, {
-    -- You can add other tools here that you want Mason to install
-  })
-
-  require('mason-tool-installer').setup { ensure_installed = ensure_installed }
+  -- require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
   for name, server in pairs(servers) do
     vim.lsp.config(name, server)
@@ -782,7 +844,12 @@ do
     format_on_save = function(bufnr)
       -- You can specify filetypes to autoformat on save here:
       local enabled_filetypes = {
-        -- lua = true,
+        c = true,
+        cpp = true,
+        lua = true,
+        verilog = true,
+        systemverilog = true,
+        zig = true,
         -- python = true,
       }
       if enabled_filetypes[vim.bo[bufnr].filetype] then
@@ -796,6 +863,7 @@ do
     },
     -- You can also specify external formatters in here.
     formatters_by_ft = {
+      lua = { 'stylua' },
       -- rust = { 'rustfmt' },
       -- Conform can also run multiple formatters sequentially
       -- python = { "isort", "black" },
@@ -852,7 +920,7 @@ do
       -- <c-k>: Toggle signature help
       --
       -- See `:help blink-cmp-config-keymap` for defining your own keymap
-      preset = 'default',
+      preset = 'enter',
 
       -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
       --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -967,11 +1035,11 @@ do
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
   -- require 'kickstart.plugins.debug'
-  -- require 'kickstart.plugins.indent_line'
+  require 'kickstart.plugins.indent_line'
   -- require 'kickstart.plugins.lint'
-  -- require 'kickstart.plugins.autopairs'
-  -- require 'kickstart.plugins.neo-tree'
-  -- require 'kickstart.plugins.gitsigns' -- adds gitsigns recommended keymaps
+  require 'kickstart.plugins.autopairs'
+  require 'kickstart.plugins.neo-tree'
+  require 'kickstart.plugins.gitsigns' -- adds gitsigns recommended keymaps
 
   -- NOTE: You can add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --
