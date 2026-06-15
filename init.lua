@@ -110,7 +110,7 @@ do
   vim.o.number = true
   -- You can also add relative line numbers, to help with jumping.
   --  Experiment for yourself to see if you like it!
-  -- vim.o.relativenumber = true
+  vim.o.relativenumber = true
 
   -- Enable mouse mode, can be useful for resizing splits for example!
   vim.o.mouse = 'a'
@@ -189,6 +189,12 @@ do
   vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
   -- Save with ctrl s
+  vim.keymap.set({ 'n', 'i' }, '<C-s>', function()
+    vim.cmd.stopinsert()
+    require('conform').format { async = true }
+    vim.cmd.update()
+  end)
+
   vim.keymap.set({ 'n', 'i' }, '<C-s>', '<Esc><cmd>update<CR>')
 
   -- System clipboard handle
@@ -447,8 +453,8 @@ do
   vim.g.everforest_background = 'hard'
   vim.g.everforest_enable_italic = 1
   vim.cmd.colorscheme 'everforest'
-  -- vim.api.nvim_set_hl(0, 'DiagnosticVirtualTextError', { fg = '#e67e80', bg = 'NONE', italic = true })
-  -- vim.api.nvim_set_hl(0, 'DiagnosticVirtualTextWarn', { fg = '#dbbc7f', bg = 'NONE', italic = true })
+  vim.api.nvim_set_hl(0, 'DiagnosticVirtualTextError', { fg = '#e67e80', bg = 'NONE', italic = true })
+  vim.api.nvim_set_hl(0, 'DiagnosticVirtualTextWarn', { fg = '#dbbc7f', bg = 'NONE', italic = true })
 
   -- Highlight todo, notes, etc in comments
   vim.pack.add { gh 'folke/todo-comments.nvim' }
@@ -803,28 +809,7 @@ do
 
   vim.pack.add {
     gh 'neovim/nvim-lspconfig',
-    gh 'mason-org/mason.nvim',
-    gh 'mason-org/mason-lspconfig.nvim',
-    gh 'WhoIsSethDaniel/mason-tool-installer.nvim',
   }
-
-  -- no mason
-  -- -- Automatically install LSPs and related tools to stdpath for Neovim
-  -- require('mason').setup {}
-  --
-  -- -- Ensure the servers and tools above are installed
-  -- --
-  -- -- To check the current status of installed tools and/or manually install
-  -- -- other tools, you can run
-  -- --    :Mason
-  -- --
-  -- -- You can press `g?` for help in this menu.
-  -- local ensure_installed = vim.tbl_keys(servers or {})
-  -- vim.list_extend(ensure_installed, {
-  --   -- You can add other tools here that you want Mason to install
-  -- })
-  --
-  -- require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
   for name, server in pairs(servers) do
     vim.lsp.config(name, server)
@@ -847,6 +832,7 @@ do
         c = true,
         cpp = true,
         lua = true,
+        fish = true,
         verilog = true,
         systemverilog = true,
         zig = true,
@@ -863,6 +849,7 @@ do
     },
     -- You can also specify external formatters in here.
     formatters_by_ft = {
+      -- fish = { 'fish_indent' },
       lua = { 'stylua' },
       -- rust = { 'rustfmt' },
       -- Conform can also run multiple formatters sequentially
