@@ -141,7 +141,7 @@ do
   vim.o.updatetime = 250
 
   -- Decrease mapped sequence wait time
-  vim.o.timeoutlen = 300
+  vim.o.timeoutlen = 500
 
   -- Configure how new splits should be opened
   vim.o.splitright = true
@@ -174,6 +174,12 @@ do
 
   -- wrap nicely rather than yeeting letters
   vim.o.linebreak = true
+
+  vim.filetype.add {
+    extension = {
+      h = 'c',
+    },
+  }
 end
 
 -- ============================================================
@@ -301,21 +307,15 @@ do
 
   -- Build & run zig project directly from neovim
   vim.api.nvim_create_autocmd('FileType', {
-    pattern = 'zig',
     callback = function(opts)
       -- Look for build.zig upwards from the current file's directory
-      local build_file = vim.fs.find('build.zig', {
-        upward = true,
-        path = vim.fs.dirname(vim.api.nvim_buf_get_name(opts.buf)),
-      })
+      local root = vim.fs.root(0, { 'build.zig', '.git' })
 
       -- If build.zig is found, set the keymap for this buffer only
-      if #build_file > 0 then
-        vim.keymap.set('n', '<leader>z', ':!zig build run<CR>', {
-          buffer = opts.buf,
-          desc = 'Build and run zig project',
-        })
-      end
+      if root then vim.keymap.set('n', '<leader>z', ':!zig build run<CR>', {
+        buffer = opts.buf,
+        desc = 'Build and run zig project',
+      }) end
     end,
   })
 end
@@ -754,6 +754,7 @@ do
   ---@type table<string, vim.lsp.Config>
   local servers = {
     clangd = {},
+    glsl_analyzer = {},
     veridian = {
       cmd = { 'veridian' },
       filetypes = { 'verilog', 'systemverilog' },
