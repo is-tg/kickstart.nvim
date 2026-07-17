@@ -754,6 +754,11 @@ do
   ---@type table<string, vim.lsp.Config>
   local servers = {
     clangd = {},
+    serve_d = {
+      cmd = { 'serve-d' },
+      filetypes = { 'd' },
+      root_markers = { 'dub.sdl', 'dub.json' },
+    },
     glsl_analyzer = {},
     veridian = {
       cmd = { 'veridian' },
@@ -832,6 +837,7 @@ do
       local enabled_filetypes = {
         c = true,
         cpp = true,
+        d = true,
         lua = true,
         fish = true,
         verilog = true,
