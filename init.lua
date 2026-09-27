@@ -754,19 +754,25 @@ do
   ---@type table<string, vim.lsp.Config>
   local servers = {
     clangd = {},
+    cssls = {},
+    html = {},
     serve_d = {
       cmd = { 'serve-d' },
       filetypes = { 'd' },
       root_markers = { 'dub.sdl', 'dub.json' },
     },
     glsl_analyzer = {},
+    kotlin_lsp = {
+      cmd = { 'kotlin-lsp', '--stdio' },
+      single_file_support = false,
+    },
     veridian = {
       cmd = { 'veridian' },
       filetypes = { 'verilog', 'systemverilog' },
       root_markers = { 'veridian.yml', '.git' },
     },
     zls = {},
-    -- gopls = {},
+    gopls = {},
     -- pyright = {},
     -- rust_analyzer = {},
     --
@@ -838,8 +844,10 @@ do
         c = true,
         cpp = true,
         d = true,
+        go = true,
         lua = true,
         fish = true,
+        kotlin = true,
         verilog = true,
         systemverilog = true,
         zig = true,
@@ -1038,7 +1046,7 @@ do
   -- NOTE: You can add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- require 'custom.plugins'
+  require 'custom.plugins'
 end
 
 -- The line beneath this is called `modeline`. See `:help modeline`
